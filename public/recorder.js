@@ -125,7 +125,7 @@ formEl.onsubmit = async (ev) => {
   if (!res.ok) {
     const msg = await res.text().catch(()=> "");
     console.error("Upload failed", msg);
-    statusEl.textContent = "Upload failed.";
+    statusEl.textContent = "Upload failed: " + (body || "");
     return;
   }
   const data = await res.json();

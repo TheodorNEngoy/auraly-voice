@@ -2,27 +2,25 @@
   const { request, env } = context;
   const form = await request.formData();
 
-  // 1) Verify Turnstile (token from widget)
   const token = String(form.get("cf-turnstile-response") || "");
-  const secret = (env.TURNSTILE_SECRET_KEY as string) || "1x0000000000000000000000000000000AA"; // test secret (always passes)
+  const secret = (env.TURNSTILE_SECRET_KEY as string) || "1x0000000000000000000000000000000AA"; // Turnstile TEST secret
+
   const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ secret, response: token }),
   });
   const verdict = await verifyRes.json<any>();
+
   if (!verdict.success) {
-    return new Response(JSON.stringify({ error: "bot_check_failed" }), {
+    return new Response(JSON.stringify({ error: "bot_check_failed", verdict, hasToken: !!token }), {
       status: 403, headers: { "Content-Type": "application/json" }
     });
   }
 
-  // 2) Store audio in R2
   const file = form.get("file");
   if (!(file instanceof File)) {
-    return new Response(JSON.stringify({ error: "missing_file" }), {
-      status: 400, headers: { "Content-Type": "application/json" }
-    });
+    return new Response(JSON.stringify({ error: "missing_file" }), { status: 400, headers: { "Content-Type": "application/json" } });
   }
 
   const type = file.type || "audio/webm";
@@ -34,8 +32,7 @@
   const key = `raw/${crypto.randomUUID()}.${ext}`;
   await env.AUDIO.put(key, file.stream(), { httpMetadata: { contentType: type } });
 
-  const playback = `/api/media/${encodeURIComponent(key)}`;
-  return new Response(JSON.stringify({ key, playback }), {
+  return new Response(JSON.stringify({ key, playback: `/api/media/${encodeURIComponent(key)}` }), {
     headers: { "Content-Type": "application/json" }
   });
 };
