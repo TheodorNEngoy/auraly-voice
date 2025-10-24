@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Auraly — Feed</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <header class="top">
+    <h1>🎙️ Auraly</h1>
+    <nav>
+      <a href="/index.html">Record</a>
+      <a href="/feed.html">Feed</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Latest uploads</h2>
+      <div id="feed"></div>
+    </section>
+  </main>
+
+  <script>
+  async function loadFeed() {
+    const res = await fetch('/api/feed');
+    if (!res.ok) {
+      document.getElementById('feed').innerHTML = '<p>Failed to load feed.</p>';
+      return;
+    }
+    const data = await res.json();
+    const el = document.getElementById('feed');
+    el.innerHTML = '';
+    if (!data.items.length) {
+      el.innerHTML = '<p>No posts yet. Record one!</p>';
+      return;
+    }
+    for (const p of data.items) {
+      const card = document.createElement('div');
+      card.className = 'post';
+      card.innerHTML = `
+        <div class="meta">
+          <strong>${p.title || 'Untitled'}</strong>
+          <span class="time">${new Date(p.uploaded).toLocaleString()}</span>
+        </div>
+        <audio controls src="${p.playback}"></audio>
+      `;
+      el.appendChild(card);
+    }
+  }
+  loadFeed();
+  </script>
+</body>
+</html>

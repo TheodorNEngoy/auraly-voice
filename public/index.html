@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Auraly — Record</title>
+  <link rel="stylesheet" href="/styles.css"/>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+  <header class="top">
+    <h1>🎙️ Auraly</h1>
+    <nav>
+      <a href="/index.html">Record</a>
+      <a href="/feed.html">Feed</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Record a new voice post</h2>
+      <div id="recorder">
+        <div class="row">
+          <label>Title</label>
+          <input id="title" placeholder="Optional title…"/>
+        </div>
+        <div class="row">
+          <button id="startBtn">Start</button>
+          <button id="stopBtn" disabled>Stop</button>
+          <button id="uploadBtn" disabled>Upload</button>
+        </div>
+        <div class="row">
+          <div id="turnstile-container"></div>
+        </div>
+        <p id="status"></p>
+        <audio id="preview" controls></audio>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>How it works</h2>
+      <ol>
+        <li>Mic permission & recording with <code>MediaRecorder</code>.</li>
+        <li>Upload via Pages Function to R2 storage.</li>
+        <li>Play back from <code>/api/media/&lt;key&gt;</code>.</li>
+      </ol>
+    </section>
+  </main>
+
+  <script src="/recorder.js"></script>
+</body>
+</html>

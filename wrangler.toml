@@ -1,0 +1,8 @@
+name = "auraly-pages"
+compatibility_date = "2025-10-24"
+pages_build_output_dir = "./public"
+
+# Example of declaring bindings for local dev; in Dashboard you'll add R2 binding "AUDIO".
+# [[r2_buckets]]
+# binding = "AUDIO"
+# bucket_name = "auraly-audio"
