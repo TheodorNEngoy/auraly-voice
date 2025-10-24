@@ -24,28 +24,38 @@ function pickMime() {
   return "";
 }
 
-async function renderTurnstile() {
-  // Ask server for site key; it falls back to the official Cloudflare TEST key
-  const res = await fetch("/api/public-config", { cache: "no-store" });
-  const { turnstileSiteKey } = await res.json();
+// Render Turnstile explicitly AFTER the script has loaded (defer) and DOM is ready
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const res = await fetch("/api/public-config", { cache: "no-store" });
+    const { turnstileSiteKey } = await res.json();
 
-  const mount = () => {
-    if (!window.turnstile) return;
-    widgetId = window.turnstile.render("#turnstile-container", {
-      sitekey: turnstileSiteKey
-    });
-  };
-
-  if (window.turnstile && window.turnstile.ready) {
-    window.turnstile.ready(mount);
-  } else {
-    window.addEventListener("load", () => {
-      if (window.turnstile && window.turnstile.ready) window.turnstile.ready(mount);
-      else mount();
-    });
+    // With defer, api.js executes before DOMContentLoaded, so window.turnstile should exist now.
+    if (window.turnstile) {
+      widgetId = window.turnstile.render("#turnstile-container", {
+        sitekey: turnstileSiteKey,
+        "refresh-expired": "auto"
+      });
+    } else {
+      // Fallback: poll briefly in case of slow network
+      let tries = 0;
+      const id = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(id);
+          widgetId = window.turnstile.render("#turnstile-container", {
+            sitekey: turnstileSiteKey,
+            "refresh-expired": "auto"
+          });
+        } else if (++tries > 100) {
+          clearInterval(id);
+          console.warn("Turnstile did not load yet");
+        }
+      }, 50);
+    }
+  } catch (e) {
+    console.error("Failed to fetch public config", e);
   }
-}
-renderTurnstile();
+});
 
 startBtn.onclick = async () => {
   try {
@@ -82,24 +92,38 @@ formEl.onsubmit = async (ev) => {
   ev.preventDefault();
   if (!chunks.length) return alert("Record something first.");
 
-  const blob = new Blob(chunks, { type: mediaRec?.mimeType || "audio/webm" });
-  statusEl.textContent = "Uploading...";
-
-  // IMPORTANT: Build FormData from the FORM so the hidden cf-turnstile-response is included
-  const form = new FormData(formEl);
-
-  // Extra safety: if the hidden field didn't get injected, fetch it manually
-  if (!form.get("cf-turnstile-response") && window.turnstile && widgetId) {
-    const token = window.turnstile.getResponse(widgetId);
-    if (token) form.set("cf-turnstile-response", token);
+  // Ensure the Turnstile token is present before submitting
+  const hidden = formEl.querySelector('input[name="cf-turnstile-response"]');
+  let token = hidden ? hidden.value : "";
+  if (!token && window.turnstile && widgetId) {
+    token = window.turnstile.getResponse(widgetId);
+    if (token) {
+      // Ensure it is included in the form
+      if (hidden) hidden.value = token;
+      else {
+        const h = document.createElement("input");
+        h.type = "hidden";
+        h.name = "cf-turnstile-response";
+        h.value = token;
+        formEl.appendChild(h);
+      }
+    }
+  }
+  if (!token) {
+    statusEl.textContent = "Security check not ready. Please wait a second and try Upload again.";
+    return;
   }
 
+  statusEl.textContent = "Uploading...";
+  const blob = new Blob(chunks, { type: mediaRec?.mimeType || "audio/webm" });
   const filename = (titleEl.value || "clip") + (blob.type.includes("webm") ? ".webm" : ".m4a");
+
+  const form = new FormData(formEl);      // includes the hidden token now
   form.append("file", blob, filename);
 
   const res = await fetch("/api/upload", { method: "POST", body: form });
   if (!res.ok) {
-    const msg = await res.text();
+    const msg = await res.text().catch(()=> "");
     console.error("Upload failed", msg);
     statusEl.textContent = "Upload failed.";
     return;
