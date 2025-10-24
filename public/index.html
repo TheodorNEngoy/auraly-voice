@@ -1,11 +1,12 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Auraly — Record</title>
   <link rel="stylesheet" href="/styles.css"/>
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <!-- Explicit rendering so we control when the widget mounts -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 <body>
   <header class="top">
@@ -19,29 +20,36 @@
   <main>
     <section class="card">
       <h2>Record a new voice post</h2>
-      <div id="recorder">
+
+      <!-- The widget must be inside a form so it auto-injects the hidden input
+           named cf-turnstile-response, which will be included in FormData. -->
+      <form id="uploadForm">
         <div class="row">
           <label>Title</label>
-          <input id="title" placeholder="Optional title…"/>
+          <input id="title" name="title" placeholder="Optional title…"/>
         </div>
+
         <div class="row">
-          <button id="startBtn">Start</button>
-          <button id="stopBtn" disabled>Stop</button>
-          <button id="uploadBtn" disabled>Upload</button>
+          <button type="button" id="startBtn">Start</button>
+          <button type="button" id="stopBtn" disabled>Stop</button>
+          <button type="submit" id="uploadBtn" disabled>Upload</button>
         </div>
+
         <div class="row">
+          <!-- Turnstile renders here and injects the hidden token into THIS form -->
           <div id="turnstile-container"></div>
         </div>
-        <p id="status"></p>
-        <audio id="preview" controls></audio>
-      </div>
+      </form>
+
+      <p id="status"></p>
+      <audio id="preview" controls></audio>
     </section>
 
     <section class="card">
       <h2>How it works</h2>
       <ol>
-        <li>Mic permission & recording with <code>MediaRecorder</code>.</li>
-        <li>Upload via Pages Function to R2 storage.</li>
+        <li>Record with <code>MediaRecorder</code> (HTTPS required).</li>
+        <li>Upload via Pages Function to R2.</li>
         <li>Play back from <code>/api/media/&lt;key&gt;</code>.</li>
       </ol>
     </section>
