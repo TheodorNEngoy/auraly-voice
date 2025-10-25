@@ -1,0 +1,27 @@
+﻿<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mic Debug</title><style>body{font-family:system-ui;margin:2rem}pre{background:#f6f6f6;padding:1rem;border-radius:8px}</style></head>
+<body>
+<h1>Mic Debug</h1>
+<pre id="out"></pre>
+<script>
+(async ()=>{
+  const out = document.getElementById('out');
+  const log = x => out.textContent += x + '\n';
+
+  log('origin: ' + location.origin);
+  log('mediaDevices available: ' + !!navigator.mediaDevices);
+  log('getUserMedia available: ' + !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    log('SUCCESS: got stream with ' + stream.getAudioTracks().length + ' audio track(s)');
+    stream.getTracks().forEach(t => t.stop());
+  } catch (e) {
+    log('FAILED: ' + e.name + ': ' + e.message);
+  }
+})();
+</script>
+</body></html>
