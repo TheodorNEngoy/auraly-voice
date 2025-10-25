@@ -1,4 +1,4 @@
-﻿name = "auraly-voice"                   # MUST match the Pages project name exactly
+﻿name = "auraly-voice"                   # MUST match your Pages project name
 compatibility_date = "2025-10-24"
 pages_build_output_dir = "./public"
 
