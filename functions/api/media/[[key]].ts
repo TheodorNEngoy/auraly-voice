@@ -19,17 +19,25 @@ export const onRequestGet: PagesFunction<{ AUDIO: R2Bucket }> = async (context) 
   if (!head) return new Response("Not found", { status: 404 });
 
   const size = head.size;
-  const etag = (head as any).httpEtag || (head as any).etag || undefined;
-  const inm = request.headers.get("If-None-Match");
+
+  // Cloudflare recommends httpEtag when emitting a header (already quoted)
+  const etag = (head as any).httpEtag || (head as any).etag || "";
+  const inmRaw = request.headers.get("If-None-Match") || "";
+  const norm = (s: string) => s.trim().replace(/^W\//, "");
+  const inmList = inmRaw.split(",").map(norm);
+  const myTag  = norm(etag);
+
   const baseHeaders: Record<string,string> = {
     "Accept-Ranges": "bytes",
     "Content-Type": head.httpMetadata?.contentType || "application/octet-stream",
     "Cache-Control": "public, max-age=3600",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
   };
   if (etag) baseHeaders["ETag"] = etag;
 
-  // Conditional GET (304)
-  if (etag && inm && inm.replace(/W\\//, "") === etag.replace(/W\\//, "")) {
+  // Conditional GET: return 304 if any tag matches
+  if (etag && inmList.includes(myTag)) {
     return new Response(null, { status: 304, headers: baseHeaders });
   }
 
