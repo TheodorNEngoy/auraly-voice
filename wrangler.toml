@@ -34,3 +34,10 @@ bucket_name = "auraly-audio"
 binding        = "DB"
 database_name  = "auraly-db"
 database_id    = "2549f08a-21a9-4c54-ae87-69a8f34817d7"
+
+[env.preview.ai]
+binding = "AI"
+
+[env.production.ai]
+binding = "AI"
+
