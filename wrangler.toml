@@ -6,21 +6,15 @@ pages_build_output_dir = "./public"
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
 
-# Preview (keeps Turnstile TEST keys so it always passes)
 [env.preview.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT
-"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
 TURNSTILE_SECRET_KEY            = "1x0000000000000000000000000000000AA"
 [[env.preview.r2_buckets]]
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
 
-# Production (site key = your real site key; secret will be set in dashboard below)
 [env.production.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT
-"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT"
 [[env.production.r2_buckets]]
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
-
-
