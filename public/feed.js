@@ -1,0 +1,39 @@
+﻿const app = document.getElementById('app');
+
+function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+async function loadFeed(){
+  app.innerHTML = '<section class="card"><p>Loading…</p></section>';
+  const res = await fetch('/api/feed?limit=20', { cache:'no-store' });
+  const data = await res.json();
+  app.innerHTML = '';
+  for (const it of data.items){
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.innerHTML = `
+      <h3>${escapeHtml(it.title || 'Voice post')}</h3>
+      <audio controls src="${it.playback}"></audio>
+      <p class="muted">${new Date(it.created_at).toLocaleString()}</p>
+      <p>
+        <a href="/p/${it.id}" target="_blank" rel="noopener">Share link</a>
+        · <button class="x-trans" data-id="${it.id}">Transcribe</button>
+      </p>
+      <pre class="transcript">${escapeHtml(it.transcript || '')}</pre>
+    `;
+    app.appendChild(card);
+  }
+
+  document.querySelectorAll('.x-trans').forEach(btn=>{
+    btn.onclick = async ()=>{
+      btn.disabled = true; btn.textContent = 'Transcribing…';
+      const id = btn.getAttribute('data-id');
+      const r = await fetch(`/api/transcribe?id=${encodeURIComponent(id)}`, { method:'POST' });
+      const j = await r.json().catch(()=>({}));
+      const pre = btn.closest('.card').querySelector('.transcript');
+      if (r.ok && j.text){ pre.textContent = j.text; btn.textContent = 'Transcribed'; }
+      else { pre.textContent = (j && j.error) ? JSON.stringify(j) : 'Failed'; btn.disabled = false; btn.textContent = 'Transcribe'; }
+    };
+  });
+}
+
+document.addEventListener('DOMContentLoaded', loadFeed);

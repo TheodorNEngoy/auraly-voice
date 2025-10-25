@@ -15,3 +15,5 @@ audio{width:100%;margin-top:8px}
 .meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .time{font-size:12px;opacity:.7}
 #status{opacity:.8;font-size:14px}
+/* CSP-safe avatar (no inline style) */
+.avatar{width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:.4rem}

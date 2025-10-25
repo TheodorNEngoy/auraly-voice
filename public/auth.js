@@ -14,7 +14,7 @@
 
   if (user) {
     box.innerHTML =
-      `<img src="${user.image_url||''}" alt="" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:.4rem">` +
+      `<img src="${user.image_url||''}" alt="" class="avatar">` +
       `${(user.name||'You')} · <button id="logoutBtn" type="button">Sign out</button>`;
     document.getElementById("logoutBtn").onclick = async () => {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -26,3 +26,4 @@
 
   document.dispatchEvent(new Event("auth:ready"));
 });
+
