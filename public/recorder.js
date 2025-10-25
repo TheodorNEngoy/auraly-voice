@@ -95,9 +95,9 @@ formEl.onsubmit = async (ev) => {
     }
 
     const data = ct.includes("application/json") ? JSON.parse(text) : { playback: "" };
-    statusEl.innerHTML = `Done! <a href="${data.playback}" target="_blank" rel="noopener">Open</a> • <button id="copyLink">Copy link</button>`;
+    statusEl.innerHTML = `Done! <a href="${data.share}" target="_blank" rel="noopener">Open</a> • <button id="copyLink">Copy link</button>`;
     document.getElementById("copyLink").onclick = async () => {
-      await navigator.clipboard.writeText(location.origin + data.playback);
+      await navigator.clipboard.writeText(location.origin + data.share);
       statusEl.textContent = "Link copied. Check the Feed!";
     };
     uploadBtn.disabled = true;
@@ -108,3 +108,4 @@ formEl.onsubmit = async (ev) => {
     }
   }
 };
+
