@@ -85,9 +85,13 @@ formEl.onsubmit = async (ev) => {
     const text = await res.text().catch(()=> "");
 
     if (!res.ok) {
-      if (res.status === 429 || text.includes("Error 1015") || text.includes("You are being rate limited")) {
-        statusEl.textContent = "Too many uploads — wait 10 seconds and try again.";
-      } else {
+  const txt = await res.text().catch(()=> "");
+  let j; try { j = JSON.parse(txt); } catch {}
+  const codes = j?.verdict?.["error-codes"]?.join(",") || "";
+  statusEl.textContent = codes ? `Upload blocked (${codes}).` : "Upload failed.";
+  if (window.turnstile && widgetId) { window.turnstile.reset(widgetId); hasToken = false; updateUploadEnabled(); }
+  return;
+} else {
         const body = ct.includes("application/json") ? JSON.parse(text) : text;
         statusEl.textContent = "Upload failed: " + (typeof body === "string" ? body : JSON.stringify(body));
       }
@@ -108,4 +112,5 @@ formEl.onsubmit = async (ev) => {
     }
   }
 };
+
 
