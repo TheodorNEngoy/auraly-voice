@@ -1,32 +1,25 @@
-﻿name = "auraly-voice"                   # MUST match your Pages project name
+﻿name = "auraly-voice"                 # MUST equal your Pages project name
 compatibility_date = "2025-10-24"
-pages_build_output_dir = "./public"
+pages_build_output_dir = "./public"   # Required by Pages
 
-# Global (applies unless overridden)
-[vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT
-"
-TURNSTILE_SECRET_KEY            = "1x0000000000000000000000000000000AA"
+# Do NOT store production secrets in source control.
 
+# R2 binding (top-level)
 [[r2_buckets]]
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
 
-# Repeat non-inheritable keys for PREVIEW
+# ---- Preview (keeps Turnstile on test keys) ----
 [env.preview.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT
-"
-TURNSTILE_SECRET_KEY            = "1x0000000000000000000000000000000AA"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"  # official test site key
 
 [[env.preview.r2_buckets]]
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
 
-# Repeat non-inheritable keys for PRODUCTION
+# ---- Production (uses your REAL site key) ----
 [env.production.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT
-"
-TURNSTILE_SECRET_KEY            = "1x0000000000000000000000000000000AA"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT"
 
 [[env.production.r2_buckets]]
 binding     = "AUDIO"
