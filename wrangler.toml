@@ -4,7 +4,7 @@ pages_build_output_dir = "./public"
 
 # Global (applies unless overridden)
 [vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT"
 TURNSTILE_SECRET_KEY            = "1x0000000000000000000000000000000AA"
 
 [[r2_buckets]]
@@ -13,7 +13,7 @@ bucket_name = "auraly-audio"
 
 # Repeat non-inheritable keys for PREVIEW
 [env.preview.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT"
 TURNSTILE_SECRET_KEY            = "1x0000000000000000000000000000000AA"
 
 [[env.preview.r2_buckets]]
@@ -22,7 +22,7 @@ bucket_name = "auraly-audio"
 
 # Repeat non-inheritable keys for PRODUCTION
 [env.production.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT"
 TURNSTILE_SECRET_KEY            = "1x0000000000000000000000000000000AA"
 
 [[env.production.r2_buckets]]
