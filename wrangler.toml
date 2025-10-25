@@ -1,26 +1,30 @@
-﻿name = "auraly-voice"                 # MUST equal your Pages project name
+﻿name = "auraly-voice"
 compatibility_date = "2025-10-24"
-pages_build_output_dir = "./public"   # Required by Pages
+pages_build_output_dir = "./public"
 
-# Do NOT store production secrets in source control.
-
-# R2 binding (top-level)
 [[r2_buckets]]
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
 
-# ---- Preview (keeps Turnstile on test keys) ----
 [env.preview.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"  # official test site key
-
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
 [[env.preview.r2_buckets]]
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
 
-# ---- Production (uses your REAL site key) ----
 [env.production.vars]
-NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAB8kxanXAZMswmOT"
-
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
 [[env.production.r2_buckets]]
 binding     = "AUDIO"
 bucket_name = "auraly-audio"
+
+# Worker Rate Limiting (5 requests per 60s)
+[[env.preview.ratelimits]]
+name = "UPLOAD_LIMIT"
+namespace_id = "7001"
+simple = { limit = 5, period = 60 }
+
+[[env.production.ratelimits]]
+name = "UPLOAD_LIMIT"
+namespace_id = "7001"
+simple = { limit = 5, period = 60 }
