@@ -1,5 +1,6 @@
 ﻿export const onRequestPost: PagesFunction<{
   AUDIO: R2Bucket,
+  DB: D1Database,
   TURNSTILE_SECRET_KEY: string,
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: string
 }> = async (context) => {
@@ -7,19 +8,14 @@
     const { request, env } = context;
     const form = await request.formData();
 
-    // ---- Turnstile verify
+    // --- Turnstile verify (tokens are single-use and expire ~5 min)
     const token = String(form.get("cf-turnstile-response") || "");
     const siteKey = (env as any).NEXT_PUBLIC_TURNSTILE_SITE_KEY || "";
     const TEST_SITE   = "1x00000000000000000000AA";
     const TEST_SECRET = "1x0000000000000000000000000000000AA";
-
     let secret: string | undefined = (env as any).TURNSTILE_SECRET_KEY;
     if (siteKey === TEST_SITE && !secret) secret = TEST_SECRET;
-    if (!secret) {
-      return new Response(JSON.stringify({ error: "server_missing_secret" }), {
-        status: 500, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
-      });
-    }
+    if (!secret) return new Response(JSON.stringify({ error: "server_missing_secret" }), { status: 500, headers: { "Content-Type": "application/json" } });
 
     const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
       method: "POST",
@@ -33,37 +29,40 @@
       });
     }
 
-    // ---- File validation
+    // --- File validation
     const file = form.get("file");
-    if (!(file instanceof File)) {
-      return new Response(JSON.stringify({ error: "missing_file" }), {
-        status: 400, headers: { "Content-Type": "application/json" }
-      });
-    }
+    if (!(file instanceof File)) return new Response(JSON.stringify({ error: "missing_file" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
     const maxBytes = 12 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      return new Response(JSON.stringify({ error: "too_large", limit: maxBytes }), {
-        status: 413, headers: { "Content-Type": "application/json" }
-      });
-    }
-    const allowed = ["audio/webm", "audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg"];
+    if (file.size > maxBytes) return new Response(JSON.stringify({ error: "too_large", limit: maxBytes }), { status: 413, headers: { "Content-Type": "application/json" } });
+
+    const allowed = ["audio/webm","audio/mpeg","audio/mp4","audio/aac","audio/ogg"];
     const t = file.type || "application/octet-stream";
-    if (!allowed.some(a => t.startsWith(a))) {
-      return new Response(JSON.stringify({ error: "unsupported_type", type: t }), {
-        status: 415, headers: { "Content-Type": "application/json" }
-      });
-    }
+    if (!allowed.some(a => t.startsWith(a))) return new Response(JSON.stringify({ error: "unsupported_type", type: t }), { status: 415, headers: { "Content-Type": "application/json" } });
 
-    const ext = t.includes("webm") ? "webm"
-              : (t.includes("mp4") || t.includes("aac")) ? "m4a"
-              : (t.includes("mpeg") || t.includes("mp3")) ? "mp3"
-              : t.includes("ogg") ? "ogg" : "bin";
-    const key = `raw/${crypto.randomUUID()}.${ext}`;
+    const ext = t.includes("webm") ? "webm" : (t.includes("mp4") || t.includes("aac")) ? "m4a"
+              : (t.includes("mpeg") || t.includes("mp3")) ? "mp3" : t.includes("ogg") ? "ogg" : "bin";
 
+    const id = crypto.randomUUID();
+    const key = `raw/${id}.${ext}`;
+
+    // Store bytes in R2 (use ArrayBuffer for fixed length)
     const data = await file.arrayBuffer();
     await env.AUDIO.put(key, data, { httpMetadata: { contentType: t } });
 
-    return new Response(JSON.stringify({ key, playback: `/api/media/${encodeURIComponent(key)}` }), {
+    // Write metadata to D1
+    const title = String(form.get("title") || "").slice(0, 140);
+    const now = new Date().toISOString();
+    const ip = request.headers.get("cf-connecting-ip") || null;
+
+    await env.DB.prepare(
+      "INSERT INTO posts (id, title, r2_key, content_type, size, created_at, ip) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    ).bind(id, title || null, key, t, file.size, now, ip).run();
+
+    const playback = `/api/media/${encodeURIComponent(key)}`;
+    const share = `/p/${id}`;
+
+    return new Response(JSON.stringify({ id, key, playback, share }), {
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
     });
   } catch (err: any) {
