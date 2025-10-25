@@ -13,7 +13,8 @@
 
   const html = `<!doctype html>
 <html lang="en"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>${escape(title)}</title>
 <link rel="stylesheet" href="/styles.css"/>
 <meta property="og:title" content="${escape(title)}"/>
@@ -31,7 +32,18 @@
 </main>
 </body></html>`;
 
-  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+  const CSP = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
+              "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data: https://lh3.googleusercontent.com https://*.googleusercontent.com; " +
+              "connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; media-src 'self' blob:";
+
+  return new Response(html, { headers: {
+    "content-type": "text/html; charset=utf-8",
+    "Content-Security-Policy": CSP,
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff"
+  }});
 
   function escape(s: string){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] as string)); }
 };
