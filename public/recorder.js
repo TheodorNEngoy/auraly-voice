@@ -20,11 +20,10 @@ function pickMime() {
   return "";
 }
 
-// Render Turnstile and track token state
+// Init Turnstile
 document.addEventListener("DOMContentLoaded", async () => {
   const res = await fetch("/api/public-config", { cache: "no-store" });
   const { turnstileSiteKey } = await res.json();
-
   widgetId = turnstile.render("#turnstile-container", {
     sitekey: turnstileSiteKey,
     "response-field": true,
@@ -40,27 +39,20 @@ startBtn.onclick = async () => {
   try {
     chunks = [];
     hasRecording = false; updateUploadEnabled();
-
     const mimeType = pickMime();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaRec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-
     mediaRec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
     mediaRec.onstop = () => {
       const blob = new Blob(chunks, { type: mediaRec.mimeType });
       preview.src = URL.createObjectURL(blob);
-      hasRecording = true;
-      updateUploadEnabled();
+      hasRecording = true; updateUploadEnabled();
       statusEl.textContent = `Ready to upload (${(blob.size/1024).toFixed(1)} KB, ${mediaRec.mimeType})`;
     };
-
     mediaRec.start(250);
     startBtn.disabled = true; stopBtn.disabled = false;
     statusEl.textContent = "Recording...";
-  } catch (e) {
-    console.error(e);
-    alert("Mic permission denied or unsupported browser.");
-  }
+  } catch (e) { console.error(e); alert("Mic permission denied or unsupported browser."); }
 };
 
 stopBtn.onclick = () => {
@@ -77,10 +69,7 @@ formEl.onsubmit = async (ev) => {
   if (!hasRecording) return alert("Record something first.");
 
   const token = window.turnstile && widgetId ? window.turnstile.getResponse(widgetId) : "";
-  if (!token) {
-    statusEl.textContent = "Security check not ready. Try again.";
-    return;
-  }
+  if (!token) { statusEl.textContent = "Security check not ready. Try again."; return; }
 
   statusEl.textContent = "Uploading...";
   const blob = new Blob(chunks, { type: mediaRec?.mimeType || "audio/webm" });
@@ -92,10 +81,20 @@ formEl.onsubmit = async (ev) => {
 
   try {
     const res = await fetch("/api/upload", { method: "POST", body: form });
-    const body = await res.text().catch(()=> "");
-    if (!res.ok) { statusEl.textContent = "Upload failed: " + (body || ""); return; }
+    const ct = res.headers.get("content-type") || "";
+    const text = await res.text().catch(()=> "");
 
-    const data = JSON.parse(body || "{}");
+    if (!res.ok) {
+      if (res.status === 429 || text.includes("Error 1015") || text.includes("You are being rate limited")) {
+        statusEl.textContent = "Too many uploads — wait 10 seconds and try again.";
+      } else {
+        const body = ct.includes("application/json") ? JSON.parse(text) : text;
+        statusEl.textContent = "Upload failed: " + (typeof body === "string" ? body : JSON.stringify(body));
+      }
+      return;
+    }
+
+    const data = ct.includes("application/json") ? JSON.parse(text) : { playback: "" };
     statusEl.innerHTML = `Done! <a href="${data.playback}" target="_blank" rel="noopener">Open</a> • <button id="copyLink">Copy link</button>`;
     document.getElementById("copyLink").onclick = async () => {
       await navigator.clipboard.writeText(location.origin + data.playback);
@@ -103,11 +102,9 @@ formEl.onsubmit = async (ev) => {
     };
     uploadBtn.disabled = true;
   } finally {
-    // IMPORTANT: Always refresh token after we consumed it
     if (window.turnstile && widgetId) {
-      window.turnstile.reset(widgetId);
-      hasToken = false;            // wait for next callback to set true again
-      updateUploadEnabled();
+      window.turnstile.reset(widgetId);    // new token for next upload
+      hasToken = false; updateUploadEnabled();
     }
   }
 };
