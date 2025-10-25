@@ -10,12 +10,9 @@ let mediaRec = null;
 let chunks = [];
 let widgetId = null;
 
-// NEW: gate Upload on *both* token + recording
 let hasToken = false;
 let hasRecording = false;
-function updateUploadEnabled() {
-  uploadBtn.disabled = !(hasToken && hasRecording);
-}
+function updateUploadEnabled() { uploadBtn.disabled = !(hasToken && hasRecording); }
 
 function pickMime() {
   const cands = ["audio/webm;codecs=opus","audio/webm","audio/mp4;codecs=aac","audio/mp4","audio/mpeg"];
@@ -23,22 +20,20 @@ function pickMime() {
   return "";
 }
 
-// Render Turnstile explicitly; manage token lifecycle
+// Render Turnstile and track token state
 document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    const res = await fetch("/api/public-config", { cache: "no-store" });
-    const { turnstileSiteKey } = await res.json();
+  const res = await fetch("/api/public-config", { cache: "no-store" });
+  const { turnstileSiteKey } = await res.json();
 
-    widgetId = turnstile.render("#turnstile-container", {
-      sitekey: turnstileSiteKey,
-      "response-field": true,
-      "response-field-name": "cf-turnstile-response",
-      "refresh-expired": "auto",
-      callback: function (token) { hasToken = !!token; updateUploadEnabled(); },
-      "expired-callback": function () { hasToken = false; updateUploadEnabled(); },
-      "error-callback":   function () { hasToken = false; updateUploadEnabled(); }
-    });
-  } catch (e) { console.error("Failed to init Turnstile", e); }
+  widgetId = turnstile.render("#turnstile-container", {
+    sitekey: turnstileSiteKey,
+    "response-field": true,
+    "response-field-name": "cf-turnstile-response",
+    "refresh-expired": "auto",
+    callback: () => { hasToken = true; updateUploadEnabled(); },
+    "expired-callback": () => { hasToken = false; updateUploadEnabled(); },
+    "error-callback":   () => { hasToken = false; updateUploadEnabled(); }
+  });
 });
 
 startBtn.onclick = async () => {
@@ -54,15 +49,18 @@ startBtn.onclick = async () => {
     mediaRec.onstop = () => {
       const blob = new Blob(chunks, { type: mediaRec.mimeType });
       preview.src = URL.createObjectURL(blob);
-      hasRecording = true;              // NEW: we have something to upload
-      updateUploadEnabled();            // Enable if token is also present
+      hasRecording = true;
+      updateUploadEnabled();
       statusEl.textContent = `Ready to upload (${(blob.size/1024).toFixed(1)} KB, ${mediaRec.mimeType})`;
     };
 
     mediaRec.start(250);
     startBtn.disabled = true; stopBtn.disabled = false;
     statusEl.textContent = "Recording...";
-  } catch (e) { console.error(e); alert("Mic permission denied or unsupported browser."); }
+  } catch (e) {
+    console.error(e);
+    alert("Mic permission denied or unsupported browser.");
+  }
 };
 
 stopBtn.onclick = () => {
@@ -78,22 +76,38 @@ formEl.onsubmit = async (ev) => {
   ev.preventDefault();
   if (!hasRecording) return alert("Record something first.");
 
-  // Always include the token explicitly
   const token = window.turnstile && widgetId ? window.turnstile.getResponse(widgetId) : "";
-  if (!token) { statusEl.textContent = "Security check not ready. Wait a moment and try Upload again."; return; }
+  if (!token) {
+    statusEl.textContent = "Security check not ready. Try again.";
+    return;
+  }
 
   statusEl.textContent = "Uploading...";
   const blob = new Blob(chunks, { type: mediaRec?.mimeType || "audio/webm" });
   const filename = (titleEl.value || "clip") + (blob.type.includes("webm") ? ".webm" : ".m4a");
 
-  const form = new FormData(formEl);           // includes hidden field if present
-  form.set("cf-turnstile-response", token);    // and we force‑set it here too
+  const form = new FormData(formEl);
+  form.set("cf-turnstile-response", token);
   form.append("file", blob, filename);
 
-  const res  = await fetch("/api/upload", { method: "POST", body: form });
-  const body = await res.text().catch(()=> "");
-  if (!res.ok) { console.error("Upload failed", body); statusEl.textContent = "Upload failed: " + (body || ""); return; }
+  try {
+    const res = await fetch("/api/upload", { method: "POST", body: form });
+    const body = await res.text().catch(()=> "");
+    if (!res.ok) { statusEl.textContent = "Upload failed: " + (body || ""); return; }
 
-  statusEl.textContent = "Done! Open the Feed to see your post.";
-  uploadBtn.disabled = true; // avoid double‑submit
+    const data = JSON.parse(body || "{}");
+    statusEl.innerHTML = `Done! <a href="${data.playback}" target="_blank" rel="noopener">Open</a> • <button id="copyLink">Copy link</button>`;
+    document.getElementById("copyLink").onclick = async () => {
+      await navigator.clipboard.writeText(location.origin + data.playback);
+      statusEl.textContent = "Link copied. Check the Feed!";
+    };
+    uploadBtn.disabled = true;
+  } finally {
+    // IMPORTANT: Always refresh token after we consumed it
+    if (window.turnstile && widgetId) {
+      window.turnstile.reset(widgetId);
+      hasToken = false;            // wait for next callback to set true again
+      updateUploadEnabled();
+    }
+  }
 };
