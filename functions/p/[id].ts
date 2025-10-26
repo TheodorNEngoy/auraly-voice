@@ -11,8 +11,7 @@
   const title = (row.title || "Voice post on Auraly").slice(0, 140);
   const desc  = row.transcript ? (row.transcript.slice(0, 160) + (row.transcript.length>160?"…":"")) : "Listen on Auraly";
 
-  const html = `<!doctype html>
-<html lang="en"><head>
+  const html = `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>${escape(title)}</title>
@@ -32,15 +31,16 @@
 </main>
 </body></html>`;
 
-  const CSP = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; " +
-              "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; " +
-              "style-src 'self' 'unsafe-inline'; " +
-              "img-src 'self' data: https://lh3.googleusercontent.com https://*.googleusercontent.com; " +
-              "connect-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; media-src 'self' blob:";
+  const csp = "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; "
+    + "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; "
+    + "style-src 'self' 'unsafe-inline'; "
+    + "img-src 'self' data: https://lh3.googleusercontent.com https://*.googleusercontent.com; "
+    + "connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com; "
+    + "frame-src https://challenges.cloudflare.com; media-src 'self' blob:";
 
   return new Response(html, { headers: {
     "content-type": "text/html; charset=utf-8",
-    "Content-Security-Policy": CSP,
+    "Content-Security-Policy": csp,
     "Referrer-Policy": "no-referrer",
     "X-Content-Type-Options": "nosniff"
   }});
