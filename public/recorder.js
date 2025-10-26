@@ -10,28 +10,30 @@
   let mediaRec = null;
   let chunks = [];
   let widgetId = null;
+
   let hasToken = false;
   let hasRecording = false;
+  let isAuthed = false;
 
   function updateUploadEnabled() {
-    uploadBtn.disabled = !(hasToken && hasRecording);
+    uploadBtn.disabled = !(isAuthed && hasToken && hasRecording);
   }
 
   function pickMime() {
-    const cands = [
-      "audio/webm;codecs=opus",
-      "audio/webm",
-      "audio/mp4;codecs=aac",
-      "audio/mp4",
-      "audio/mpeg"
-    ];
+    const cands = ["audio/webm;codecs=opus","audio/webm","audio/mp4;codecs=aac","audio/mp4","audio/mpeg"];
     for (const t of cands) if (window.MediaRecorder?.isTypeSupported?.(t)) return t;
     return "";
   }
 
-  // --- 1) Wire up handlers FIRST (so Start works even if Turnstile is slow)
+  // reflect auth state from /auth.js
+  document.addEventListener("auth:ready", () => {
+    isAuthed = !!window.__user;
+    updateUploadEnabled();
+    if (!isAuthed) statusEl.textContent = "Sign in to upload.";
+  });
+
+  // Start first (independent of Turnstile load)
   startBtn.onclick = async () => {
-    console.log("[recorder] Start clicked");
     try {
       chunks = [];
       hasRecording = false; updateUploadEnabled();
@@ -54,9 +56,7 @@
       statusEl.textContent = "Recording...";
     } catch (e) {
       console.error(e);
-      const msg = (e && (e.name + ": " + e.message)) || "Unknown error";
-      statusEl.textContent = msg;
-      alert(msg);
+      alert((e && (e.name + ": " + e.message)) || "Mic error");
     }
   };
 
@@ -71,17 +71,12 @@
 
   formEl.onsubmit = async (ev) => {
     ev.preventDefault();
+    if (!isAuthed) { alert("Please sign in first."); return; }
     if (!hasRecording) { alert("Record something first."); return; }
 
-    // Always ensure a fresh token (explicitly read from widget if present)
     let token = "";
-    try {
-      token = (window.turnstile && widgetId) ? window.turnstile.getResponse(widgetId) : "";
-    } catch {}
-    if (!token) {
-      statusEl.textContent = "Security check not ready. Wait a moment and try Upload again.";
-      return;
-    }
+    try { token = (window.turnstile && widgetId) ? window.turnstile.getResponse(widgetId) : ""; } catch {}
+    if (!token) { statusEl.textContent = "Security check not ready. Try again in a second."; return; }
 
     statusEl.textContent = "Uploading...";
     const blob = new Blob(chunks, { type: mediaRec?.mimeType || "audio/webm" });
@@ -96,21 +91,18 @@
     const body = await res.text().catch(()=> "");
     if (!res.ok) {
       let j; try { j = JSON.parse(body); } catch {}
-      const codes = j?.verdict?.["error-codes"]?.join(",") || "";
+      const codes = j?.verdict?.["error-codes"]?.join(",") || j?.error || "";
       statusEl.textContent = codes ? `Upload blocked (${codes}).` : "Upload failed.";
-      console.error("Upload failed", body);
       try { if (window.turnstile && widgetId) { window.turnstile.reset(widgetId); hasToken = false; updateUploadEnabled(); } } catch {}
       return;
     }
     const data = JSON.parse(body);
-    statusEl.textContent = "Done! Open the Feed to see your post.";
+    statusEl.textContent = "Uploaded.";
     uploadBtn.disabled = true;
-
-    // Optional: link to share page
     if (data?.share) statusEl.innerHTML = `Uploaded. <a href="${data.share}" target="_blank" rel="noopener">Open post</a>`;
   };
 
-  // --- 2) TURNSTILE (safe, non-fatal). Render after DOM & after api.js loads
+  // Turnstile (explicit render)
   document.addEventListener("DOMContentLoaded", async () => {
     try {
       const res = await fetch("/api/public-config", { cache: "no-store" });
@@ -129,20 +121,13 @@
             "error-callback":   () => { hasToken = false; updateUploadEnabled(); }
           });
           return true;
-        } catch (e) {
-          console.warn("Turnstile render error", e);
-          return false;
-        }
+        } catch (e) { console.warn("Turnstile render error", e); return false; }
       };
 
       if (!tryRender()) {
         let tries = 0;
-        const id = setInterval(() => {
-          if (tryRender() || ++tries > 80) clearInterval(id);
-        }, 100);
+        const id = setInterval(() => { if (tryRender() || ++tries > 80) clearInterval(id); }, 100);
       }
-    } catch (e) {
-      console.warn("Failed to init Turnstile", e);
-    }
+    } catch (e) { console.warn("Failed to init Turnstile", e); }
   });
 })();
